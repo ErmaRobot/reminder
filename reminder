@@ -1,0 +1,60 @@
+#!/usr/bin/python
+
+#standard libraries
+import sys
+import re
+
+#reminder libraries
+import remCom 
+import remDB
+
+### COMMAND LINE PROCESSING ###
+def parse_command(arg):
+  if len(arg) == 0:
+    return ('date','')
+  
+  command = None
+  for c in remCom.command:
+    result = re.fullmatch(remCom.command[c], arg)
+    if result is not None:
+      command = c
+      break
+
+  if command is None:
+    return None
+
+  if command == 'date':
+    return (command, arg)
+
+  arg = ' '.join(arg.split(' ')[1:])
+  return (command, arg)
+
+def route_command(c, d):
+  return remCom.function[c[0]](c[1], d)
+
+
+### MAIN ###
+if __name__ == "__main__":
+  db = remDB.EventDB()
+
+  command_str = ''
+  if len(sys.argv) > 1:
+    command_str = ' '.join(sys.argv[1:])
+
+  command = parse_command(command_str)
+  if command is None:
+    print('Command not recognized')
+    exit(-1)
+
+  (result, output) = route_command(command, db)
+
+  exit_value = -1
+  if result == 'GOOD':
+    exit_value = 0
+    print(output, end='')
+  elif result == 'FAIL':
+    print('Error occured: {}'.format(output))
+
+  db.save()
+  exit(exit_value)
+

@@ -18,22 +18,15 @@ The reminder app will be used through the command line with a few commands.
   + reminder listRepeating [open|closed] - list repeating events
   + reminder listSingle [future|past] - list single events, today is in future
 
-Events will be written to the eventList file which will have four sections.
-  + repeatOpen - repeat events to be shown will be in this section
+Events will be written to the eventList file which will have three sections.
+  + open   - repeat events to be shown will be in this section
       in descending of creation timestamp.
-  + repeatClosed - repeat events not to be shown in current and future lists. Will
-      still show up in passed lists depending on date of creation and repetition
+  + closed - repeat events not to be shown in current and future lists. Will
+      still show up in past lists depending on date of creation and repetition
       pattern.
   + single - one time events in descending timestamp order. Event
       will be displayed on the list if the timestamp corresponds to the given 
       date.
-  + past - one time events in which the timestamp is an earlier date than the
-      current. This and the repeat sections will be loaded on past lists, 
-      otherwise repeat and one time sections will be loaded. 
-
-Events will be read from the eventList file into a database implemented with a
-red-black self balancing tree or a radix tree. This database will be made available
-to commands as they need.
 
 Event structure will be different between repeating and single events. The 
 information reguired of a repeating event are:
@@ -98,7 +91,7 @@ make it easier to add and change commands without having to change the main code
 To add a command, one would only have to add a command to an existing .py file, or
 make a new file and import it in remCom.py. After that make an entry into command
 dictionary with the name of the new command paired with a regex for recognizing 
-it. Then make an enry in the function dictionary with a call to the new function.
+it. Then make an entry in the function dictionary with a call to the new function.
 
 All commands are expected to take a string containing args or nothing at all.
 

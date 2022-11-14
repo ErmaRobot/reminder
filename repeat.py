@@ -5,15 +5,16 @@ import remDB
 yearly = r'y((0[0-9])|(1[0-2]))(([0-2][0-9])|(3[0-1]))'
 monthly = r'm(([0-2][0-9])|(3[0-1]))'
 daily = r'd'
-weekly = r'w[smtwhfa]{1,7}[0-9]+:[0-9]+'
+weekly = r'w(s?m?t?w?h?f?a?)([0-9])+:([0-9])+'
 pat =r'('+yearly+r')|('+monthly+r')|('+daily+r')|('+weekly+r')'
 
 def addRepeat(msg, db):
   split = msg.index(' ')
-  pat = msg[:split]
+  pattern = msg[:split]
   split += 1
-  msg = msg[split:]
-  db.addRepeat(pat, msg)
+  message = msg[split:]
+  (period, data) = remDB.RepeatEvent.parse(pattern)
+  db.addRepeat(period, data, message)
   return ('GOOD', '')
 
 def closeRepeat(msg, db):
@@ -31,10 +32,10 @@ def listRepeating(msg, db):
   elif msg == 'closed':
     (result, output) = db.getAllRepeatEvents(closedEvents=True)
   if result == 'FAIL':
-    return (resul, output)
+    return (result, output)
   report = ''
   for event in output:
-    report += f'{event.id}) {event.message}, {event.pattern}\n'
+    report += f'{event.id}) {event.message}, {event.pattern()}\n'
   return ('GOOD', report)
 
 def patterns(msg, db):

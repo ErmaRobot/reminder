@@ -1,22 +1,71 @@
 from datetime import datetime
+from datetime import timedelta
+
 import remConfig
 
-delim = ';~;'
+delim = remConfig.delim
 path = remConfig.path
 eventFile = remConfig.eventFile
 
 class SingleEvent:
-  def __init__(self, stamp, msg, id):
+  def __init__(self, stamp, msg, iden):
     self.date = stamp
     self.message = msg
-    self.id = id
+    self.id = iden
 
 class RepeatEvent:
-  def __init__(self, pat, msg, stamp, id):
-    self.pattern = pat
+  y_month  = 0
+  y_day    = 1 
+  m_day    = 0
+  w_days   = 0
+  w_period = 1
+  w_offset = 2
+
+  def __init__(self, period, idata, msg, stamp, iden):
+    self.period = period
+    self.data = []
+    for i in range(len(idata)):
+      if i >= 3:
+        break
+      self.data.append(idata[i])
     self.message = msg
     self.creation = stamp
-    self.id = id
+    self.id = iden
+
+  def pattern(self):
+    pattern = f'{self.period}'
+    if self.period == 'w':
+      pattern += self.data[RepeatEvent.w_days]
+      pattern += f'{self.data[RepeatEvent.w_period]}:'
+      pattern += f'{self.data[RepeatEvent.w_offset]}'
+    elif self.period == 'y':
+      pattern += f'{self.data[RepeatEvent.y_month]}'.zfill(2)
+      pattern += f'{self.data[RepeatEvent.y_day]}'.zfill(2)
+    elif self.period == 'm':
+      pattern += f'{self.data[RepeatEvent.m_day]}'.zfill(2)
+    return pattern
+
+  def parse(pattern_string):
+    data = []
+    if pattern_string[0] == 'w':
+      period = 1
+      while pattern_string[period] not in '0123456789':
+        period += 1
+      data.append(pattern_string[1:period])
+      colon = period
+      while pattern_string[colon] != ':':
+        colon += 1
+      data.append(int(pattern_string[period:colon]))
+      offset = colon + 1
+      data.append(int(pattern_string[offset:]))
+    elif pattern_string[0] == 'y':
+      data.append(int(pattern_string[1:3]))
+      data.append(int(pattern_string[3:]))
+    elif pattern_string[0] == 'm':
+      data.append(int(pattern_string[1:]))
+    else: #pattern_string[0] == 'd'
+      pass
+    return (pattern_string[0], data)
 
 class EventDB:
   repeat = {'open':[], 'closed':[]}
@@ -25,7 +74,11 @@ class EventDB:
   repeat_id = 'r0'
 
   def __init__(self):
-    eventlist = open(path+eventFile, 'r')
+    try:
+      eventlist = open(path+eventFile, 'r')
+    except:
+      open(path+eventFile, 'w').close()
+      return
     sid = 0
     rid = 0
 
@@ -37,11 +90,13 @@ class EventDB:
       data = tuple(event[:-1].split(delim))
       did = int(data[-1][1:])
       if section == 'open':
-        self.repeat['open'].append(RepeatEvent(data[0], data[1], float(data[2]), data[3]))
+        (pat, d) = RepeatEvent.parse(data[0])
+        self.repeat['open'].append(RepeatEvent(pat, d, data[1], float(data[2]), data[3]))
         if did > rid:
           rid = did
       elif section == 'closed':
-        self.repeat['closed'].append(RepeatEvent(data[0], data[1], float(data[2]), data[3]))
+        (pat, d) = RepeatEvent.parse(data[0])
+        self.repeat['closed'].append(RepeatEvent(pat, d, data[1], float(data[2]), data[3]))
         if did > rid:
           rid = did
       elif section == 'single':
@@ -56,12 +111,13 @@ class EventDB:
 
   def save(self):
     eventlist = open(path+eventFile, 'w')
+
     eventlist.write('#open\n')
     for event in self.repeat['open']:
-      eventlist.write(f'{event.pattern}{delim}{event.message}{delim}{event.creation}{delim}{event.id}\n')
+      eventlist.write(f'{event.pattern()}{delim}{event.message}{delim}{event.creation}{delim}{event.id}\n')
     eventlist.write('#closed\n')
     for event in self.repeat['closed']:
-      eventlist.write(f'{event.pattern}{delim}{event.message}{delim}{event.creation}{delim}{event.id}\n')
+      eventlist.write(f'{event.pattern()}{delim}{event.message}{delim}{event.creation}{delim}{event.id}\n')
     eventlist.write('#single\n')
     for event in self.single:
       eventlist.write(f'{event.date}{delim}{event.message}{delim}{event.id}\n')
@@ -101,19 +157,20 @@ class EventDB:
     daysOfTheWeek = ['m', 't', 'w', 'h', 'f', 'a', 's']
     events = []
     for event in self.repeat['open']:
-      if event.pattern[0] == 'y':
-        if event.pattern[1:] == f'{str(givenDate.month).zfill(2)}{str(givenDate.day).zfill(2)}':
+      if event.period == 'y':
+        if event.data[RepeatEvent.y_month] == givenDate.month and event.data[RepeatEvent.y_day] == givenDate.day:
           events.append(event)
-      elif event.pattern[0] == 'm':
-        if event.pattern[1:] == f'{str(givenDate.day).zfill(2)}':
+      elif event.period == 'm':
+        if event.data[RepeatEvent.m_day] == givenDate.day:
           events.append(event)
-      elif event.pattern[0] == 'd':
+      elif event.period == 'd':
         events.append(event)    
-      elif event.pattern[0] == 'w':
-        weekday = daysOfTheWeek[givenDate.weekday()]
-        if weekday in event.pattern[1:]:
-          events.append(event)
-      
+      elif event.period == 'w':
+        if daysOfTheWeek[givenDate.weekday()] in event.data[RepeatEvent.w_days]:
+          origin = datetime.fromtimestamp(event.creation)
+          weeks = int((givenDate - origin - timedelta(days=givenDate.weekday()) - timedelta(days=origin.weekday())).days / 7)
+          if event.data[RepeatEvent.w_offset] == weeks % (event.data[RepeatEvent.w_period] + 1):
+            events.append(event)
     return ('GOOD', events)
 
   def getAllRepeatEvents(self, openEvents=False, closedEvents=False):
@@ -140,10 +197,10 @@ class EventDB:
         return ('GOOD', '')
     return ('FAIL', 'No such event')
 
-  def addRepeat(self, pat, msg):
+  def addRepeat(self, period, data, msg):
     eid = int(self.repeat_id[1:])
     stamp = datetime.today().timestamp()
-    event = RepeatEvent(f'{pat}', msg, stamp, 'r{}'.format(eid + 1))
+    event = RepeatEvent(period, data, msg, stamp, f'r{eid + 1}')
     self.repeat['open'].append(event)
     self.repeat_id = event.id
     return ('GOOD', '')

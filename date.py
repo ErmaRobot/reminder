@@ -23,10 +23,10 @@ def date(arg, db):
 
   report = ''
   i = 1
-  for event in soutput:
+  for event in routput:
     report += '{}: {}\n'.format(str(i).zfill(2), event.message)
     i += 1
-  for event in routput:
+  for event in soutput:
     report += '{}: {}\n'.format(str(i).zfill(2), event.message)
     i += 1
 

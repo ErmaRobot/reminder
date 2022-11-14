@@ -19,8 +19,8 @@ msg = r'(\S| ){1,140}'
 command = {
             'date':date.regex,
             'todo':r'todo( '+date.regex+')?',
-            'addRepeat':r'addRepeat( '+repeat.pat+')( '+msg+')',
-            'addSingle':r'addSingle( '+date.regex+')( '+msg+')',
+            'addRepeat':r'addRepeat ('+repeat.pat+') ('+msg+')',
+            'addSingle':r'addSingle ('+date.regex+') ('+msg+')',
             'closeRepeat':r'closeRepeat( '+eid+')',
             'rmRepeat':r'rmRepeat( '+eid+')',
             'rmSingle':r'rmSingle( '+eid+')',
